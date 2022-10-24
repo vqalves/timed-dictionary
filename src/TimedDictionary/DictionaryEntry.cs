@@ -73,7 +73,7 @@ namespace TimedDictionary
                     await Task.Delay(duration, token);
 
                     if(!token.IsCancellationRequested)
-                        ParentDictionary.Remove(Key);
+                        ParentDictionary.Remove(this);
                 }, token);
             }
         }

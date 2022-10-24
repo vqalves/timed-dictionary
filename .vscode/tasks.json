@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/tests/TimedDictionary.Tests/TimedDictionary.Tests.csproj",
+                "${workspaceFolder}/examples/TimedDictionary.WebExample/TimedDictionary.WebExample.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -19,7 +19,7 @@
             "type": "process",
             "args": [
                 "publish",
-                "${workspaceFolder}/tests/TimedDictionary.Tests/TimedDictionary.Tests.csproj",
+                "${workspaceFolder}/examples/TimedDictionary.WebExample/TimedDictionary.WebExample.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -33,7 +33,7 @@
                 "watch",
                 "run",
                 "--project",
-                "${workspaceFolder}/tests/TimedDictionary.Tests/TimedDictionary.Tests.csproj"
+                "${workspaceFolder}/examples/TimedDictionary.WebExample/TimedDictionary.WebExample.csproj"
             ],
             "problemMatcher": "$msCompile"
         }

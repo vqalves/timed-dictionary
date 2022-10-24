@@ -6,7 +6,7 @@ namespace TimedDictionary.Tests.Test
     public class TimedDictionaryTests
     {
         [Fact]
-        public void TimedDictionary_Add()
+        public void TimedDictionary_GetOrAddIfNew()
         {
             int key = 1;
             string value = "Test";
@@ -18,7 +18,19 @@ namespace TimedDictionary.Tests.Test
         }
 
         [Fact]
-        public void TimedDictionary_RetrieveNoDuration()
+        public void TimedDictionary_GetOrAddIfNew_OnOverflow()
+        {
+            int key = 1;
+            string value = "Test";
+
+            TimedDictionary<int, string> dictionary = new TimedDictionary<int, string>(maximumSize: 0);
+            var result = dictionary.GetOrAddIfNew(key, () => value);
+
+            Assert.Equal(value, result);
+        }
+
+        [Fact]
+        public void TimedDictionary_GetValueOrDefault_RetrieveNoDuration()
         {
             int key = 1;
             string value = "Test";
@@ -31,7 +43,7 @@ namespace TimedDictionary.Tests.Test
         }
 
         [Fact]
-        public void TimedDictionary_RetrieveWithinDuration()
+        public void TimedDictionary_GetValueOrDefault_RetrieveWithinDuration()
         {
             int duration = 10;
 
@@ -46,7 +58,7 @@ namespace TimedDictionary.Tests.Test
         }
 
         [Fact]
-        public async Task TimedDictionary_ExpireAfterDuration()
+        public async Task TimedDictionary_GetValueOrDefault_ExpireAfterDuration()
         {
             int duration = 10;
 
@@ -63,10 +75,10 @@ namespace TimedDictionary.Tests.Test
         }
 
         [Fact]
-        public async Task TimedDictionary_WithExtendTime_ExpireByNotTriggering()
+        public async Task TimedDictionary_GetValueOrDefault_WithExtendTime_ExpireByNotTriggering()
         {
-            int duration = 10;
-            var config = new ExtendTimeConfiguration(duration: 10);
+            int duration = 50;
+            var config = new ExtendTimeConfiguration(duration: 50);
 
             int key = 1;
             string value = "Test";
@@ -81,7 +93,7 @@ namespace TimedDictionary.Tests.Test
         }
 
         [Fact]
-        public async Task TimedDictionary_WithExtendTime_ExtendTimeOnce()
+        public async Task TimedDictionary_GetValueOrDefault_WithExtendTime_ExtendTimeOnce()
         {
             int duration = 50;
             var config = new ExtendTimeConfiguration(duration: 50);
@@ -102,10 +114,10 @@ namespace TimedDictionary.Tests.Test
         }
 
         [Fact]
-        public async Task TimedDictionary_WithExtendTime_ExpireByLimit()
+        public async Task TimedDictionary_GetValueOrDefault_WithExtendTime_ExpireByLimit()
         {
-            int duration = 10;
-            var config = new ExtendTimeConfiguration(duration: 10, limit: 0);
+            int duration = 50;
+            var config = new ExtendTimeConfiguration(duration: 50, limit: 0);
 
             int key = 1;
             string value = "Test";
@@ -121,6 +133,89 @@ namespace TimedDictionary.Tests.Test
 
             var result = dictionary.GetValueOrDefault(key);
             Assert.Null(result);
+        }
+
+        [Fact]
+        public void TimedDictionary_Count_NoLimit()
+        {
+            int key = 1;
+            string value = "Test";
+
+            TimedDictionary<int, string> dictionary = new TimedDictionary<int, string>();
+            dictionary.GetOrAddIfNew(key, () => value);
+
+            Assert.Equal(1, dictionary.Count);
+        }
+
+        [Fact]
+        public void TimedDictionary_Count_Overflow()
+        {
+            int key = 1;
+            string value = "Test";
+
+            TimedDictionary<int, string> dictionary = new TimedDictionary<int, string>(maximumSize: 0);
+            dictionary.GetOrAddIfNew(key, () => value);
+
+            Assert.Equal(0, dictionary.Count);
+        }
+
+        [Fact]
+        public async Task TimedTaskDictionary_TaskValue_CorrectEvaluation()
+        {
+            int key = 1;
+            string value = "Test";
+
+            TimedTaskDictionary<int, string> dictionary = new TimedTaskDictionary<int, string>();
+            var result = await dictionary.GetOrAddIfNewAsync(key, () => value);
+
+            Assert.Equal(value, result);
+        }
+
+        [Fact]
+        public async Task TimedTaskDictionary_TaskValue_CleanAfterResult_FromResult()
+        {
+            int key = 1;
+            string value = "Test";
+
+            TimedTaskDictionary<int, string> dictionary = new TimedTaskDictionary<int, string>();
+            var result = await dictionary.GetOrAddIfNewAsync(key, () => Task.FromResult(value), AfterTaskCompletion.RemoveFromDictionary);
+
+            await Task.Delay(100); // Give time to the self cleaning task to trigger
+            Assert.Equal(0, dictionary.Count);
+        }
+
+        [Fact]
+        public async Task TimedTaskDictionary_TaskValue_CleanAfterResult_FromDelay()
+        {
+            int key = 1;
+            string value = "Test";
+
+            TimedTaskDictionary<int, string> dictionary = new TimedTaskDictionary<int, string>();
+            var result = await dictionary.GetOrAddIfNewAsync
+            (
+                key, 
+                async () =>
+                { 
+                    await Task.Delay(100); 
+                    return value; 
+                }, 
+                AfterTaskCompletion.RemoveFromDictionary
+            );
+
+            await Task.Delay(100); // Give time to the self cleaning task to trigger
+            Assert.Equal(0, dictionary.Count);
+        }
+
+        [Fact]
+        public async Task TimedTaskDictionary_TaskValue_DontCleanAfterResult()
+        {
+            int key = 1;
+            string value = "Test";
+
+            TimedTaskDictionary<int, string> dictionary = new TimedTaskDictionary<int, string>();
+            var result = await dictionary.GetOrAddIfNewAsync(key, () => Task.FromResult(value), AfterTaskCompletion.DoNothing);
+
+            Assert.Equal(1, dictionary.Count);
         }
     }
 }

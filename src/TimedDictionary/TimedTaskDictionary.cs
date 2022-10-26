@@ -28,23 +28,26 @@ namespace TimedDictionary
         public Task<Value> GetValueOrDefaultAsync(Key key) => TimedDictionary.GetValueOrDefault(key);
         public bool ContainsKey(Key key) => TimedDictionary.ContainsKey(key);
 
-        public bool TryAdd(Key key, Value value) => TimedDictionary.TryAdd(key, Task.FromResult(value));
-        public bool TryAdd(Key key, Task<Value> task) => TimedDictionary.TryAdd(key, task);
+        public bool TryAdd(Key key, Value value, Action<Task<Value>> onRemoved = null) => TimedDictionary.TryAdd(key, Task.FromResult(value), onRemoved);
+        public bool TryAdd(Key key, Task<Value> task, Action<Task<Value>> onRemoved = null) => TimedDictionary.TryAdd(key, task, onRemoved);
 
-        public Task<Value> GetOrAddIfNewAsync(Key key, Func<Task<Value>> notFound, AfterTaskCompletion afterTaskCompletion = null)
+        public Task<Value> GetOrAddIfNewAsync(Key key, Func<Task<Value>> notFound, AfterTaskCompletion afterTaskCompletion = null, Action<Task<Value>> onRemoved = null)
         {
             afterTaskCompletion = afterTaskCompletion ?? AfterTaskCompletion.DoNothing;
 
-            return TimedDictionary.GetOrAddIfNew(key, notFound, onNewEntry: (entry) => 
-            {
-                afterTaskCompletion.Handle(entry);
-            });
+            return TimedDictionary.GetOrAddIfNew
+            (
+                key,
+                notFound,
+                onNewEntry: (entry) => afterTaskCompletion.Handle(entry),
+                onRemoved
+            );
         }
 
-        public Task<Value> GetOrAddIfNewAsync(Key key, Func<Value> notFound)
+        public Task<Value> GetOrAddIfNewAsync(Key key, Func<Value> notFound, Action<Task<Value>> onRemoved = null)
         {
             Func<Task<Value>> task = () => Task.FromResult(notFound.Invoke());
-            return GetOrAddIfNewAsync(key, task);
+            return GetOrAddIfNewAsync(key, task, onRemoved: onRemoved);
         }
 
         public bool Remove(Key key) => TimedDictionary.Remove(key);

@@ -30,7 +30,10 @@ var dictionary = new TimedDictionary<Key, Value>(expectedDuration: 5000);
 var retrievedValue = dictionary.Remove(key);
 ```
 
-
+### Add listener to be notified when the value is removed
+```csharp
+dictionary.GetOrAddIfNew(key, () => GenerateValue(), onRemoved: (removedValue) => { /* Execute */ });
+```
 
 ## Recommended usage
 ### In-memory cache, keeping the most accessed values through refresh

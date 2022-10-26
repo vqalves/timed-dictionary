@@ -52,11 +52,11 @@ namespace TimedDictionary
             return Dictionary.ContainsKey(key);
         }
 
-        private bool TryAddUnsafe(Key key, Value value, out DictionaryEntry<Key, Value> currentEntry)
+        private bool TryAddUnsafe(Key key, Value value, out DictionaryEntry<Key, Value> currentEntry, Action<Value> onRemoved = null)
         {
             if(!Dictionary.TryGetValue(key, out currentEntry))
             {
-                currentEntry = new DictionaryEntry<Key, Value>(key, value, this, ExpectedDuration, ExtendTimeConfiguration, DateTimeProvider);
+                currentEntry = new DictionaryEntry<Key, Value>(key, value, onRemoved, this, ExpectedDuration, ExtendTimeConfiguration, DateTimeProvider);
                 Dictionary.Add(key, currentEntry);
                 return true;
             }
@@ -64,20 +64,20 @@ namespace TimedDictionary
             return false;
         }
 
-        public bool TryAdd(Key key, Value value)
+        public bool TryAdd(Key key, Value value, Action<Value> onRemoved = null)
         {
             return LockStrategy.WithLock(() => 
             {
-                return TryAddUnsafe(key, value, out var entry);
+                return TryAddUnsafe(key, value, out var entry, onRemoved);
             });
         }
 
-        public Value GetOrAddIfNew(Key key, Func<Value> notFound)
+        public Value GetOrAddIfNew(Key key, Func<Value> notFound, Action<Value> onRemoved = null)
         {
-            return GetOrAddIfNew(key, notFound, onNewEntry: null);
+            return GetOrAddIfNew(key, notFound, onNewEntry: null, onRemoved);
         }
 
-        internal Value GetOrAddIfNew(Key key, Func<Value> notFound, Action<DictionaryEntry<Key, Value>> onNewEntry = null)
+        internal Value GetOrAddIfNew(Key key, Func<Value> notFound, Action<DictionaryEntry<Key, Value>> onNewEntry = null, Action<Value> onRemoved = null)
         {
             if(!TryGetValue(key, out var entry))
             {
@@ -87,7 +87,7 @@ namespace TimedDictionary
                 LockStrategy.WithLock(() => 
                 {
                     var value = notFound.Invoke();
-                    var wasCreated = TryAddUnsafe(key, value, out entry);
+                    var wasCreated = TryAddUnsafe(key, value, out entry, onRemoved);
 
                     if(wasCreated)
                         onNewEntry?.Invoke(entry);
@@ -97,11 +97,38 @@ namespace TimedDictionary
             return entry.Value;
         }
 
+        private bool RemoveUnsafe(DictionaryEntry<Key, Value> removedEntry)
+        {
+            if(Dictionary.TryGetValue(removedEntry.Key, out var entry))
+            {
+                if(entry == removedEntry)
+                {
+                    Dictionary.Remove(removedEntry.Key);
+                    removedEntry.OnRemoved?.Invoke(removedEntry.Value);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool RemoveUnsafe(Key key)
+        {
+            if(Dictionary.TryGetValue(key, out var entry))
+            {
+                Dictionary.Remove(entry.Key);
+                entry.OnRemoved?.Invoke(entry.Value);
+                return true;
+            }
+
+            return false;
+        }
+
         public bool Remove(Key key)
         {
             return LockStrategy.WithLock(() => 
             {
-                return Dictionary.Remove(key);
+                return RemoveUnsafe(key);
             });
         }
 
@@ -109,9 +136,7 @@ namespace TimedDictionary
         {
             LockStrategy.WithLock(() => 
             {
-                if(Dictionary.TryGetValue(removedEntry.Key, out var entry))
-                    if(entry == removedEntry)
-                        Dictionary.Remove(removedEntry.Key);
+                RemoveUnsafe(removedEntry);
             });
         }
     }

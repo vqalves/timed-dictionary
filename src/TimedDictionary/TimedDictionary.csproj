@@ -4,4 +4,14 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <PackageId>TimedDictionary</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Vinicius Quinafelex Alves</Authors>
+    <Company>QRV Consultoria</Company>
+    <Title>TimedDictionary</Title>
+    <PackageDescription>Self-cleaning dictionary structure, appropriate for in-memory cache or request bundling</PackageDescription>
+    <RepositoryUrl>https://github.com/vqalves/timed-dictionary</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
 </Project>

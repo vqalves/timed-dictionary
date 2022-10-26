@@ -12,28 +12,32 @@ namespace TimedDictionary.WebExample.Endpoints
     /// </summary>
     public class TaskBundlingExample
     {
-        private TimedTaskDictionary<string, string> Dictionary = new TimedTaskDictionary<string, string>();
+        private TimedTaskDictionary<string, IResult> Dictionary;
+        private Func<string, Task<IResult>> ProcessKey;
+        private int FunctionsExecuted;
+
+        public TaskBundlingExample(Func<string, Task<IResult>> processKey)
+        {
+            this.Dictionary = new TimedTaskDictionary<string, IResult>();
+            this.ProcessKey = processKey;
+        }
 
         public async Task<IResult> HandleAsync([FromRoute]string key)
         {
-            bool fromDictionary = true;
+            var task = Dictionary.GetOrAddIfNewAsync
+            (
+                key, () => 
+                {
+                    FunctionsExecuted++;
+                    // if(FunctionsExecuted % 100 == 0)
+                    //     Console.WriteLine($"TaskBundlingExample: {FunctionsExecuted}");
 
-            var task = Dictionary.GetOrAddIfNewAsync(key, () => 
-            {
-                fromDictionary = false;
-                return ExecuteInnerFunctionAsync(key);
-            }, AfterTaskCompletion.RemoveFromDictionary);
+                    return ProcessKey(key);
+                }, 
+                AfterTaskCompletion.RemoveFromDictionary
+            );
 
-            var result = await task;
-
-            Console.WriteLine($"From dictionary: {fromDictionary}");
-            return Results.Text(result);
-        }
-
-        private async Task<string> ExecuteInnerFunctionAsync(string key)
-        {
-            await Task.Delay(5000);
-            return string.Join(string.Empty, key.Reverse());
+            return await task;
         }
     }
 }

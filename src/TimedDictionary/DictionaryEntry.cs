@@ -7,7 +7,7 @@ using TimedDictionary.DateTimeProvider;
 
 namespace TimedDictionary
 {
-    public class DictionaryEntry<T, K>
+    internal class DictionaryEntry<T, K>
     {
         private readonly object Lock;
 
@@ -73,9 +73,19 @@ namespace TimedDictionary
                     await Task.Delay(duration, token);
 
                     if(!token.IsCancellationRequested)
-                        ParentDictionary.Remove(this);
+                        RemoveItselfFromDictionary();
                 }, token);
             }
+        }
+
+        public void RemoveItselfFromDictionary()
+        {
+            ParentDictionary.Remove(this);
+        }
+
+        public double CalculateLifetime()
+        {
+            return DateTime.Now.Subtract(CreationTime).TotalMilliseconds;
         }
     }
 }

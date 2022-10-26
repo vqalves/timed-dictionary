@@ -2,12 +2,13 @@
 using System.Collections.Generic;
 using System.Linq;
 using TimedDictionary.DateTimeProvider;
+using TimedDictionary.LockStrategy;
 
 namespace TimedDictionary
 {
     public class TimedDictionary<Key, Value>
     {
-        private readonly object Lock;
+        private readonly ILockStrategy LockStrategy;
         private readonly Dictionary<Key, DictionaryEntry<Key, Value>> Dictionary;
         private readonly ExtendTimeConfiguration ExtendTimeConfiguration;
         private readonly IDateTimeProvider DateTimeProvider;
@@ -16,13 +17,13 @@ namespace TimedDictionary
 
         public int Count => Dictionary.Count;
 
-        public TimedDictionary(int? expectedDuration = null, int? maximumSize = null, ExtendTimeConfiguration extendTimeConfiguration = null, IDateTimeProvider dateTimeProvider = null)
+        public TimedDictionary(int? expectedDuration = null, int? maximumSize = null, ExtendTimeConfiguration extendTimeConfiguration = null, IDateTimeProvider dateTimeProvider = null, ILockStrategy lockStrategy = null)
         {
             this.DateTimeProvider = dateTimeProvider ?? DefaultDateTimeProvider.Instance;
             this.ExtendTimeConfiguration = extendTimeConfiguration ?? ExtendTimeConfiguration.None(DateTimeProvider);
+            this.LockStrategy = lockStrategy ?? new LockObjectStrategy();
             
             this.Dictionary = new Dictionary<Key, DictionaryEntry<Key, Value>>();
-            this.Lock = new Object();
             this.ExpectedDuration = expectedDuration;
             this.MaximumSize = maximumSize;
         }
@@ -51,42 +52,24 @@ namespace TimedDictionary
             return Dictionary.ContainsKey(key);
         }
 
-        private bool TryAddUnsafe(Key key, Value value, out DictionaryEntry<Key, Value> entry)
+        private bool TryAddUnsafe(Key key, Value value, out DictionaryEntry<Key, Value> currentEntry)
         {
-            if(!ContainsKey(key))
+            if(!Dictionary.TryGetValue(key, out currentEntry))
             {
-                entry = new DictionaryEntry<Key, Value>(key, value, this, ExpectedDuration, ExtendTimeConfiguration, DateTimeProvider);
-                Dictionary.Add(key, entry);
+                currentEntry = new DictionaryEntry<Key, Value>(key, value, this, ExpectedDuration, ExtendTimeConfiguration, DateTimeProvider);
+                Dictionary.Add(key, currentEntry);
                 return true;
             }
 
-            entry = null;
             return false;
         }
 
         public bool TryAdd(Key key, Value value)
         {
-            lock(Lock)
+            return LockStrategy.WithLock(() => 
             {
                 return TryAddUnsafe(key, value, out var entry);
-            }
-        }
-
-        public Value TryGetOrAddIfNew(Key key, Func<Value> notFound)
-        {
-            if(!TryGetValue(key, out var entry))
-            {
-                if(MaximumSize.HasValue && Count >= MaximumSize.Value)
-                    return notFound.Invoke();
-                    
-                lock(Lock)
-                {
-                    var value = notFound.Invoke();
-                    TryAddUnsafe(key, value, out entry);
-                }
-            }
-
-            return entry.Value;
+            });
         }
 
         public Value GetOrAddIfNew(Key key, Func<Value> notFound)
@@ -101,12 +84,14 @@ namespace TimedDictionary
                 if(MaximumSize.HasValue && Count >= MaximumSize.Value)
                     return notFound.Invoke();
                     
-                lock(Lock)
+                LockStrategy.WithLock(() => 
                 {
                     var value = notFound.Invoke();
-                    TryAddUnsafe(key, value, out entry);
-                    onNewEntry?.Invoke(entry);
-                }
+                    var wasCreated = TryAddUnsafe(key, value, out entry);
+
+                    if(wasCreated)
+                        onNewEntry?.Invoke(entry);
+                });
             }
 
             return entry.Value;
@@ -114,20 +99,20 @@ namespace TimedDictionary
 
         public bool Remove(Key key)
         {
-            lock(Lock)
+            return LockStrategy.WithLock(() => 
             {
                 return Dictionary.Remove(key);
-            }
+            });
         }
 
         internal void Remove(DictionaryEntry<Key, Value> removedEntry)
         {
-            lock(Lock)
+            LockStrategy.WithLock(() => 
             {
                 if(Dictionary.TryGetValue(removedEntry.Key, out var entry))
                     if(entry == removedEntry)
                         Dictionary.Remove(removedEntry.Key);
-            }
+            });
         }
     }
 }

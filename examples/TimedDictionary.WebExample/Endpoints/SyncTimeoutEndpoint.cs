@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace TimedDictionary.WebExample.Endpoints
 {
-    public class SynchronousTimeoutEndpoint
+    public class SyncTimeoutEndpoint
     {
         private TimedDictionary<string, string> Dictionary = new TimedDictionary<string, string>(expectedDuration: 2000);
 

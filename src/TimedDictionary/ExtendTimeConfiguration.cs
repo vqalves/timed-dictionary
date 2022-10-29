@@ -29,36 +29,6 @@ namespace TimedDictionary
             Limit = limit;
         }
 
-        public int? CalculateExtendedTime(DateTime extensionStart)
-        {
-            // Configured to not extend
-            if(!Duration.HasValue)
-                return null;
-
-            // Check if the extensionStart informed justify extending the time
-            var extendedFromNow = DateTimeProvider.Now.AddMilliseconds(Duration.Value);
-            if(extensionStart > extendedFromNow)
-                return null;
-
-            // Verify the remaining possible extend time, considering the configured limit
-            if(Limit.HasValue)
-            {
-                var totalExtendedTime = (int)DateTimeProvider.Now.Subtract(extensionStart).TotalMilliseconds;
-
-                if(totalExtendedTime + Duration.Value > Limit.Value)
-                {
-                    var availableExtendedTime = Limit.Value - totalExtendedTime;
-
-                    if(availableExtendedTime > 0) 
-                        return availableExtendedTime;
-                    
-                    return null;
-                } 
-            }
-
-            return Duration.Value;
-        }
-
         public static ExtendTimeConfiguration None() => new ExtendTimeConfiguration(duration: null, limit: null);
         internal static ExtendTimeConfiguration None(IDateTimeProvider dateTimeProvider) => new ExtendTimeConfiguration(dateTimeProvider: dateTimeProvider, duration: null, limit: null);
     }

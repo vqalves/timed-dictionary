@@ -48,7 +48,7 @@ namespace TimedDictionary.Tests.Test.TimedDictionaryTests
         }
 
         [Fact]
-        public async Task TimedDictionaryTests_OnRemoved_TimeoutRemoval()
+        public void TimedDictionaryTests_OnRemoved_ImmediateRemoval()
         {
             int key = 1;
             string value = "Test";
@@ -57,7 +57,20 @@ namespace TimedDictionary.Tests.Test.TimedDictionaryTests
             TimedDictionary<int, string> dictionary = new TimedDictionary<int, string>(expectedDuration: 0);
             dictionary.GetOrAddIfNew(key, () => value, onRemoved: (value) => removed = true);
             
-            await Task.Delay(50);
+            Assert.True(removed);
+        }
+
+        [Fact]
+        public async Task TimedDictionaryTests_OnRemoved_TimeoutRemoval()
+        {
+            int key = 1;
+            string value = "Test";
+            bool removed = false;
+
+            TimedDictionary<int, string> dictionary = new TimedDictionary<int, string>(expectedDuration: 100);
+            dictionary.GetOrAddIfNew(key, () => value, onRemoved: (value) => removed = true);
+            
+            await Task.Delay(500);
 
             Assert.True(removed);
         }

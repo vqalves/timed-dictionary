@@ -14,9 +14,9 @@ namespace TimedDictionary
         private TimedDictionary<Key, Task<Value>> TimedDictionary;
 
         /// <summary>Time-based self-cleaning dictionary structure. The entries are automatically removed from the structure after the specified time</summary>
-        /// <param name="expectedDuration">How many miliseconds each value should be kept in the dictionary. If null, the structure will keep all records until they are manually removed.</param>
+        /// <param name="expectedDuration">How many milliseconds each value should be kept in the dictionary. If null, the structure will keep all records until they are manually removed.</param>
         /// <param name="maximumSize">Maximum amount of keys allowed at a time. When the limit is reached, no new keys will be added and new keys will always execute the evaluation function. If null, there will be no limits to the dictionary size.</param>
-        /// <param name="extendTimeConfiguration">Allows the increase of each object lifetime inside the dictionary by X miliseconds, up to Y miliseconds, everytime the value is retrieved. If null, the object lifetime will obey the `expectedDuration` parameter.</param>
+        /// <param name="extendTimeConfiguration">Allows the increase of each object lifetime inside the dictionary by X milliseconds, up to Y milliseconds, everytime the value is retrieved. If null, the object lifetime will obey the `expectedDuration` parameter.</param>
         /// <param name="onRemoved">Callback called whenever the value is removed from the object, either by timeout or manually. Called only once per value. Example: (valueRemoved) => { }</param>
         public TimedTaskDictionary(int? expectedDuration = null, int? maximumSize = null, ExtendTimeConfiguration extendTimeConfiguration = null, TimedDictionary<Key, Task<Value>>.OnRemovedDelegate onRemoved = null) : this
         (

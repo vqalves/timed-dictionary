@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using TimedDictionary.ActionScheduler;
 using TimedDictionary.DateTimeProvider;
 using TimedDictionary.LockStrategy;
 
@@ -8,7 +10,7 @@ namespace TimedDictionary
 {
     public class TimedDictionary<Key, Value>
     {
-        public delegate void OnRemovedDelegate(Value value);
+        public delegate void OnRemovedDelegate(Value removedValue);
 
         private readonly Dictionary<Key, DictionaryEntry<Key, Value>> Dictionary;
         private readonly ExtendTimeConfiguration ExtendTimeConfiguration;
@@ -21,9 +23,9 @@ namespace TimedDictionary
         public int Count => Dictionary.Count;
 
         /// <summary>Time-based self-cleaning dictionary structure. The entries are automatically removed from the structure after the specified time</summary>
-        /// <param name="expectedDuration">How many miliseconds each value should be kept in the dictionary. If null, the structure will keep all records until they are manually removed.</param>
+        /// <param name="expectedDuration">How many milliseconds each value should be kept in the dictionary. If null, the structure will keep all records until they are manually removed.</param>
         /// <param name="maximumSize">Maximum amount of keys allowed at a time. When the limit is reached, no new keys will be added and new keys will always execute the evaluation function. If null, there will be no limits to the dictionary size.</param>
-        /// <param name="extendTimeConfiguration">Allows the increase of each object lifetime inside the dictionary by X miliseconds, up to Y miliseconds, everytime the value is retrieved. If null, the object lifetime will obey the `expectedDuration` parameter.</param>
+        /// <param name="extendTimeConfiguration">Allows the increase of each object lifetime inside the dictionary by X milliseconds, up to Y milliseconds, everytime the value is retrieved. If null, the object lifetime will obey the `expectedDuration` parameter.</param>
         /// <param name="onRemoved">Callback called whenever the value is removed from the object, either by timeout or manually. Called only once per value. Example: (valueRemoved) => { }</param>
         public TimedDictionary(int? expectedDuration = null, int? maximumSize = null, ExtendTimeConfiguration extendTimeConfiguration = null, OnRemovedDelegate onRemoved = null) : this
         (
@@ -81,8 +83,18 @@ namespace TimedDictionary
         {
             if(!Dictionary.TryGetValue(key, out currentEntry))
             {
-                currentEntry = new DictionaryEntry<Key, Value>(key, value, onRemoved ?? this.OnRemoved, this, ExpectedDuration, ExtendTimeConfiguration, Options.DateTimeProvider);
+                // If onRemoved is not specified by parameter, use the instance configuration
+                onRemoved = onRemoved ?? this.OnRemoved;
+
+                var lifetime = new EntryLifetime(ExpectedDuration, Options.DateTimeProvider, ExtendTimeConfiguration);
+
+                currentEntry = new DictionaryEntry<Key, Value>(key, value, onRemoved, this, lifetime);
                 Dictionary.Add(key, currentEntry);
+
+                // ActionScheduler can execute immediately, so add the entry to dictionary before instanciating the scheduler
+                var timeoutScheduler = ActionSchedulerFactory.Create(currentEntry.RemoveItselfFromDictionary, ExpectedDuration);
+                currentEntry.AttachTimeoutScheduler(timeoutScheduler);
+
                 return true;
             }
 

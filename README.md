@@ -8,9 +8,9 @@ TimedDictionary does not dispose values when they are removed - use the `onRemov
 ## Parameters
 Parameter | Description
 --- | ---
-expectedDuration | How many miliseconds each value should be kept in the dictionary. If null, the structure will keep all records until they are manually removed. Default: null
+expectedDuration | How many milliseconds each value should be kept in the dictionary. If null, the structure will keep all records until they are manually removed. Default: null
 maximumSize | Maximum amount of keys allowed at a time. When the limit is reached, no new keys will be added and new keys will always execute the evaluation function. If null, there will be no limits to the dictionary size. Default: null
-extendTimeConfiguration | Allows the increase of each object lifetime inside the dictionary by X miliseconds, up to Y miliseconds, everytime the value is retrieved. If null, the object lifetime will obey the `expectedDuration` configuration. Default: null
+extendTimeConfiguration | Allows the increase of each object lifetime inside the dictionary by X milliseconds, up to Y milliseconds, everytime the value is retrieved. If null, the object lifetime will obey the `expectedDuration` configuration. Default: null
 
 ## Usage
 ### General example
@@ -85,7 +85,7 @@ sequenceDiagram
     TimedDictionary->>Requests: Cached task
     Requests->>TimedDictionary: Retrieve ID 1
     TimedDictionary->>Requests: Cached task 
-    TimedDictionary->>TimedDictionary: Uncaching task after X miliseconds
+    TimedDictionary->>TimedDictionary: Uncaching task after X milliseconds
 ```
 
 `TimedTaskDictionary.GetOrAddIfNewAsync` also has an additional parameter for AfterTaskCompletion, which can be configured to remove the entry from the dictionary right after the task is completed, if that's the desired behaviour.

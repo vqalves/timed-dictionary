@@ -3,90 +3,67 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using TimedDictionary.DateTimeProvider;
+using TimedDictionary.ActionScheduler;
 
 namespace TimedDictionary
 {
     internal class DictionaryEntry<T, K>
     {
         private readonly object Lock;
-
         internal readonly T Key;
         public readonly K Value;
         internal readonly TimedDictionary<T,K>.OnRemovedDelegate OnRemoved;
 
         private readonly TimedDictionary<T, K> ParentDictionary;
-        private Task CleanUpTask;
-        private CancellationTokenSource LastCancellationTokenSource;
-        
-        private readonly IDateTimeProvider DateTimeProvider;
-        private readonly ExtendTimeConfiguration ExtendTimeConfiguration;
+        private bool WasRemoved;
 
-        private int? ExpectedDuration;
-        private readonly DateTime CreationTime;
-        private readonly DateTime? LimitTime;
+        private IActionScheduler TimeoutScheduler;
+        private readonly EntryLifetime Lifetime;
 
-        public DictionaryEntry(T key, K value, TimedDictionary<T,K>.OnRemovedDelegate onRemoved, TimedDictionary<T, K> parentDictionary, int? expectedDuration, ExtendTimeConfiguration extendTimeConfiguration, IDateTimeProvider dateTimeProvider)
+        public DictionaryEntry(T key, K value, TimedDictionary<T,K>.OnRemovedDelegate onRemoved, TimedDictionary<T, K> parentDictionary, EntryLifetime lifetime)
         {
-            this.Lock = new Object();
+            this.Lock = new object();
 
             this.Key = key;
             this.Value = value;
             this.OnRemoved = onRemoved;
 
-            this.ExpectedDuration = expectedDuration;
-            this.DateTimeProvider = dateTimeProvider;
-            this.ExtendTimeConfiguration = extendTimeConfiguration;
-
             this.ParentDictionary = parentDictionary;
-            this.CreationTime = DateTimeProvider.Now;
+            this.WasRemoved = false;
 
-            if(ExpectedDuration.HasValue)
-            {
-                LimitTime = CreationTime.AddMilliseconds(ExpectedDuration.Value);
-                SetCancellationToken(ExpectedDuration.Value);
-            }
+            this.Lifetime = lifetime;
+
+            this.TimeoutScheduler = null;
+        }
+
+        internal void AttachTimeoutScheduler(IActionScheduler timeoutScheduler)
+        {
+            this.TimeoutScheduler = timeoutScheduler;
         }
 
         public void RefreshCleanUpDuration()
         {
-            if(!LimitTime.HasValue)
-                return;
-
-            var newDuration = ExtendTimeConfiguration.CalculateExtendedTime(LimitTime.Value);
-            if(!newDuration.HasValue)
-                return;
-
-            SetCancellationToken(newDuration.Value);
-        }
-
-        private void SetCancellationToken(int duration)
-        {
-            lock(Lock)
-            {
-                LastCancellationTokenSource?.Cancel();
-
-                LastCancellationTokenSource = new CancellationTokenSource();
-                var token = LastCancellationTokenSource.Token;
-
-                CleanUpTask = Task.Run(async () => 
-                {
-                    await Task.Delay(duration, token);
-
-                    if(!token.IsCancellationRequested)
-                        RemoveItselfFromDictionary();
-                }, token);
-            }
+            var newDuration = Lifetime.ExtendCurrentLimitTime();
+            
+            if(newDuration.HasValue)
+                TimeoutScheduler.RescheduleTo(newDuration.Value);
         }
 
         public void RemoveItselfFromDictionary()
         {
-            ParentDictionary.Remove(this);
+            lock(Lock)
+            {
+                if(!WasRemoved)
+                {
+                    WasRemoved = true;
+                    ParentDictionary.Remove(this);
+                }
+            }
         }
 
-        public double CalculateLifetime()
+        public int CurrentLifetimeInMilliseconds()
         {
-            return DateTime.Now.Subtract(CreationTime).TotalMilliseconds;
+            return Lifetime.CurrentLifetimeInMs();
         }
     }
 }

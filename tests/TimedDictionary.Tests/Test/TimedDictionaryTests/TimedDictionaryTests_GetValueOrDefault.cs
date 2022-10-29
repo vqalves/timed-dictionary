@@ -72,8 +72,8 @@ namespace TimedDictionary.Tests.Test.TimedDictionaryTests
         [Fact]
         public async Task TimedDictionary_GetValueOrDefault_WithExtendTime_ExtendTimeOnce()
         {
-            int duration = 50;
-            var config = new ExtendTimeConfiguration(duration: 50);
+            int duration = 500;
+            var config = new ExtendTimeConfiguration(duration: 500);
 
             int key = 1;
             string value = "Test";

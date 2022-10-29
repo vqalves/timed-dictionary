@@ -8,24 +8,47 @@ namespace TimedDictionary
 {
     public class TimedDictionary<Key, Value>
     {
-        private readonly ILockStrategy LockStrategy;
+        public delegate void OnRemovedDelegate(Value value);
+
         private readonly Dictionary<Key, DictionaryEntry<Key, Value>> Dictionary;
         private readonly ExtendTimeConfiguration ExtendTimeConfiguration;
-        private readonly IDateTimeProvider DateTimeProvider;
+        private readonly TimedDictionaryOptions Options;
         private readonly int? ExpectedDuration;
         private readonly int? MaximumSize;
+        private readonly OnRemovedDelegate OnRemoved;
 
+        /// <summary>Amount of items currently in the dictionary</summary>
         public int Count => Dictionary.Count;
 
-        public TimedDictionary(int? expectedDuration = null, int? maximumSize = null, ExtendTimeConfiguration extendTimeConfiguration = null, IDateTimeProvider dateTimeProvider = null, ILockStrategy lockStrategy = null)
+        /// <summary>Time-based self-cleaning dictionary structure. The entries are automatically removed from the structure after the specified time</summary>
+        /// <param name="expectedDuration">How many miliseconds each value should be kept in the dictionary. If null, the structure will keep all records until they are manually removed.</param>
+        /// <param name="maximumSize">Maximum amount of keys allowed at a time. When the limit is reached, no new keys will be added and new keys will always execute the evaluation function. If null, there will be no limits to the dictionary size.</param>
+        /// <param name="extendTimeConfiguration">Allows the increase of each object lifetime inside the dictionary by X miliseconds, up to Y miliseconds, everytime the value is retrieved. If null, the object lifetime will obey the `expectedDuration` parameter.</param>
+        /// <param name="onRemoved">Callback called whenever the value is removed from the object, either by timeout or manually. Called only once per value. Example: (valueRemoved) => { }</param>
+        public TimedDictionary(int? expectedDuration = null, int? maximumSize = null, ExtendTimeConfiguration extendTimeConfiguration = null, OnRemovedDelegate onRemoved = null) : this
+        (
+            changeOptions: null,
+
+            expectedDuration: expectedDuration,
+            maximumSize: maximumSize,
+            extendTimeConfiguration: extendTimeConfiguration,
+            onRemoved: onRemoved
+        )
         {
-            this.DateTimeProvider = dateTimeProvider ?? DefaultDateTimeProvider.Instance;
-            this.ExtendTimeConfiguration = extendTimeConfiguration ?? ExtendTimeConfiguration.None(DateTimeProvider);
-            this.LockStrategy = lockStrategy ?? new LockObjectStrategy();
             
+        }
+
+        internal TimedDictionary(Action<TimedDictionaryOptions> changeOptions, int? expectedDuration = null, int? maximumSize = null, ExtendTimeConfiguration extendTimeConfiguration = null, OnRemovedDelegate onRemoved = null)
+        {
+            this.Options = new TimedDictionaryOptions();
+            changeOptions?.Invoke(Options);
+
+            this.ExtendTimeConfiguration = extendTimeConfiguration ?? ExtendTimeConfiguration.None(Options.DateTimeProvider);
+
             this.Dictionary = new Dictionary<Key, DictionaryEntry<Key, Value>>();
             this.ExpectedDuration = expectedDuration;
             this.MaximumSize = maximumSize;
+            this.OnRemoved = onRemoved;
         }
 
         private bool TryGetValue(Key key, out DictionaryEntry<Key, Value> entry)
@@ -39,6 +62,8 @@ namespace TimedDictionary
             return false;
         }
 
+        /// <summary>Get the current value associated with the key</summary>
+        /// <param name="key">Key which the value was stored</param>
         public Value GetValueOrDefault(Key key)
         {
             if(TryGetValue(key, out var entry))
@@ -52,11 +77,11 @@ namespace TimedDictionary
             return Dictionary.ContainsKey(key);
         }
 
-        private bool TryAddUnsafe(Key key, Value value, out DictionaryEntry<Key, Value> currentEntry, Action<Value> onRemoved = null)
+        private bool TryAddUnsafe(Key key, Value value, out DictionaryEntry<Key, Value> currentEntry, OnRemovedDelegate onRemoved = null)
         {
             if(!Dictionary.TryGetValue(key, out currentEntry))
             {
-                currentEntry = new DictionaryEntry<Key, Value>(key, value, onRemoved, this, ExpectedDuration, ExtendTimeConfiguration, DateTimeProvider);
+                currentEntry = new DictionaryEntry<Key, Value>(key, value, onRemoved ?? this.OnRemoved, this, ExpectedDuration, ExtendTimeConfiguration, Options.DateTimeProvider);
                 Dictionary.Add(key, currentEntry);
                 return true;
             }
@@ -64,27 +89,31 @@ namespace TimedDictionary
             return false;
         }
 
-        public bool TryAdd(Key key, Value value, Action<Value> onRemoved = null)
+        public bool TryAdd(Key key, Value value, OnRemovedDelegate onRemoved = null)
         {
-            return LockStrategy.WithLock(() => 
+            return Options.LockStrategy.WithLock(() => 
             {
                 return TryAddUnsafe(key, value, out var entry, onRemoved);
             });
         }
 
-        public Value GetOrAddIfNew(Key key, Func<Value> notFound, Action<Value> onRemoved = null)
+        /// <summary>Get the current value associated with the key. If the key is not found, generate a new value and associate with key</summary>
+        /// <param name="key">Key which the value was stored</param>
+        /// <param name="notFound">Generate a new value for the key. This function locks the object, be mindful when using parallel processing.</param>
+        /// <param name="onRemoved">Overrides onRemoved function specified on the dictionary constructor. Callback called whenever the value is removed from the object, either by timeout or manually. Called only once per value. Example: (valueRemoved) => { }</param>
+        public Value GetOrAddIfNew(Key key, Func<Value> notFound, OnRemovedDelegate onRemoved = null)
         {
-            return GetOrAddIfNew(key, notFound, onNewEntry: null, onRemoved);
+            return GetOrAddIfNew(key: key, notFound: notFound, onNewEntry: null, onRemoved: onRemoved);
         }
 
-        internal Value GetOrAddIfNew(Key key, Func<Value> notFound, Action<DictionaryEntry<Key, Value>> onNewEntry = null, Action<Value> onRemoved = null)
+        internal Value GetOrAddIfNew(Key key, Func<Value> notFound, Action<DictionaryEntry<Key, Value>> onNewEntry, OnRemovedDelegate onRemoved)
         {
             if(!TryGetValue(key, out var entry))
             {
                 if(MaximumSize.HasValue && Count >= MaximumSize.Value)
                     return notFound.Invoke();
                     
-                LockStrategy.WithLock(() => 
+                Options.LockStrategy.WithLock(() => 
                 {
                     var value = notFound.Invoke();
                     var wasCreated = TryAddUnsafe(key, value, out entry, onRemoved);
@@ -126,7 +155,7 @@ namespace TimedDictionary
 
         public bool Remove(Key key)
         {
-            return LockStrategy.WithLock(() => 
+            return Options.LockStrategy.WithLock(() => 
             {
                 return RemoveUnsafe(key);
             });
@@ -134,7 +163,7 @@ namespace TimedDictionary
 
         internal void Remove(DictionaryEntry<Key, Value> removedEntry)
         {
-            LockStrategy.WithLock(() => 
+            Options.LockStrategy.WithLock(() => 
             {
                 RemoveUnsafe(removedEntry);
             });

@@ -12,7 +12,7 @@ namespace TimedDictionary.Tests.Test.TimedDictionaryTests
             int key = 1;
             string value = "Test";
 
-            TimedDictionary<int, string> dictionary = new TimedDictionary<int, string>();
+            TimedDictionary<int, string> dictionary = new TimedDictionary<int, string>(expectedDuration: null);
             dictionary.GetOrAddIfNew(key, () => value);
 
             var result = dictionary.GetValueOrDefault(key);

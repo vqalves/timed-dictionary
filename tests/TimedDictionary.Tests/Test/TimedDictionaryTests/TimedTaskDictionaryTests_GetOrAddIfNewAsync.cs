@@ -9,11 +9,15 @@ namespace TimedDictionary.Tests.Test.TimedDictionaryTests
         public async void TimedTaskDictionary_GetOrAddIfNewAsync_ConcurrentDuplicatedWithAutoremoval()
         {
             var lockStrategy = new LockStrategy_Manual();
-
+            
             int key = 1;
             string value = "Test";
 
-            TimedTaskDictionary<int, string> dictionary = new TimedTaskDictionary<int, string>(lockStrategy: lockStrategy);
+            TimedTaskDictionary<int, string> dictionary = new TimedTaskDictionary<int, string>(expectedDuration: null, changeOptions: (options) => 
+            { 
+                options.LockStrategy = lockStrategy;
+            });
+
             var createValue = async () => 
             {
                 await Task.Delay(100);

@@ -11,7 +11,7 @@ namespace TimedDictionary.Tests.Test.TimedDictionaryTests
             int key = 1;
             string value = "Test";
 
-            TimedDictionary<int, string> dictionary = new TimedDictionary<int, string>();
+            TimedDictionary<int, string> dictionary = new TimedDictionary<int, string>(expectedDuration: null);
             var result = dictionary.GetOrAddIfNew(key, () => value);
 
             Assert.Equal(value, result);
@@ -23,7 +23,7 @@ namespace TimedDictionary.Tests.Test.TimedDictionaryTests
             int key = 1;
             string value = "Test";
 
-            TimedDictionary<int, string> dictionary = new TimedDictionary<int, string>(maximumSize: 0);
+            TimedDictionary<int, string> dictionary = new TimedDictionary<int, string>(expectedDuration: null, maximumSize: 0);
             var result = dictionary.GetOrAddIfNew(key, () => value);
 
             Assert.Equal(value, result);

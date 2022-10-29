@@ -11,7 +11,7 @@ namespace TimedDictionary.Tests.Test.TimedDictionaryTests
             int key = 1;
             string value = "Test";
 
-            TimedTaskDictionary<int, string> dictionary = new TimedTaskDictionary<int, string>();
+            TimedTaskDictionary<int, string> dictionary = new TimedTaskDictionary<int, string>(expectedDuration: null);
             var result = await dictionary.GetOrAddIfNewAsync(key, () => value);
 
             Assert.Equal(value, result);
@@ -23,7 +23,7 @@ namespace TimedDictionary.Tests.Test.TimedDictionaryTests
             int key = 1;
             string value = "Test";
 
-            TimedTaskDictionary<int, string> dictionary = new TimedTaskDictionary<int, string>();
+            TimedTaskDictionary<int, string> dictionary = new TimedTaskDictionary<int, string>(expectedDuration: null);
             var result = await dictionary.GetOrAddIfNewAsync(key, () => Task.FromResult(value), AfterTaskCompletion.RemoveFromDictionary);
 
             await Task.Delay(100); // Give time to the self cleaning task to trigger
@@ -36,7 +36,7 @@ namespace TimedDictionary.Tests.Test.TimedDictionaryTests
             int key = 1;
             string value = "Test";
 
-            TimedTaskDictionary<int, string> dictionary = new TimedTaskDictionary<int, string>();
+            TimedTaskDictionary<int, string> dictionary = new TimedTaskDictionary<int, string>(expectedDuration: null);
             var result = await dictionary.GetOrAddIfNewAsync
             (
                 key, 
@@ -58,7 +58,7 @@ namespace TimedDictionary.Tests.Test.TimedDictionaryTests
             int key = 1;
             string value = "Test";
 
-            TimedTaskDictionary<int, string> dictionary = new TimedTaskDictionary<int, string>();
+            TimedTaskDictionary<int, string> dictionary = new TimedTaskDictionary<int, string>(expectedDuration: null);
             var result = await dictionary.GetOrAddIfNewAsync(key, () => Task.FromResult(value), AfterTaskCompletion.DoNothing);
 
             Assert.Equal(1, dictionary.Count);

@@ -12,7 +12,7 @@ namespace TimedDictionary.Tests.Test.TimedDictionaryTests
             int key = 1;
             string value = "Test";
 
-            TimedDictionary<int, string> dictionary = new TimedDictionary<int, string>();
+            TimedDictionary<int, string> dictionary = new TimedDictionary<int, string>(expectedDuration: null);
             dictionary.GetOrAddIfNew(key, () => value, onRemoved: null);
 
             var result = dictionary.Remove(key);
@@ -26,8 +26,22 @@ namespace TimedDictionary.Tests.Test.TimedDictionaryTests
             string value = "Test";
             bool removed = false;
 
-            TimedDictionary<int, string> dictionary = new TimedDictionary<int, string>();
+            TimedDictionary<int, string> dictionary = new TimedDictionary<int, string>(expectedDuration: null);
             dictionary.GetOrAddIfNew(key, () => value, onRemoved: (value) => removed = true);
+            dictionary.Remove(key);
+
+            Assert.True(removed);
+        }
+
+        [Fact]
+        public void TimedDictionaryTests_OnRemovedConstructor_ManualRemoval()
+        {
+            int key = 1;
+            string value = "Test";
+            bool removed = false;
+
+            TimedDictionary<int, string> dictionary = new TimedDictionary<int, string>(expectedDuration: null, onRemoved: (value) => removed = true);
+            dictionary.GetOrAddIfNew(key, () => value);
             dictionary.Remove(key);
 
             Assert.True(removed);

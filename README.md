@@ -1,17 +1,16 @@
 # TimedDictionary
-The `TimedDicionary` and `TimedTaskDictionary` class is a time-based self-cleaning dictionary structure. 
+The `TimedDicionary` and `TimedTaskDictionary` classes are time-based self-cleaning dictionary structures. The entries are automatically removed from the structure after the specified time, allowing easier memory management on long-lived instances.
 
-Evaluation functions locks the TimedDictionary. For environments with high concurrency and long-running evaluations, consider using TimedTaskDictionary to wrap evaluations round Tasks.
+For environments with high concurrency and long-running evaluations, it is recommended to use TimedTaskDictionary to wrap evaluations round Tasks and avoid locking the object when the evaluation function is executed.
 
-Also important to note that this library does **not** dispose of any value when it times-out - the value is only removed from the dictionary.
+TimedDictionary does not dispose values when they are removed - use the `onRemoved` callback to handle disposal when necessary.
 
 ## Parameters
 Parameter | Description
 --- | ---
-expectedDuration | How many miliseconds each value should be kept in the dictionary. If null, the structure will keep all records until manually removed. Default: null
-maximumSize | Maximum amount of values. When the limit is reached, no new object will be added, and keys that are not found will always execute the evaluation function. If null, there will be no limit to the dictionary size. Default: null
-extendTimeConfiguration | Allows to configure time extension. This allows to increase each object lifetime inside the dictionry by X miliseconds, up to Y miliseconds, everytime the value is retrieved. If null, the object lifetime will obey the `expectedDuration` configuration. Default: null
-dateTimeProvider | Mostly for test purposes, it allows the user to override how the current DateTime is calculated. Default: null
+expectedDuration | How many miliseconds each value should be kept in the dictionary. If null, the structure will keep all records until they are manually removed. Default: null
+maximumSize | Maximum amount of keys allowed at a time. When the limit is reached, no new keys will be added and new keys will always execute the evaluation function. If null, there will be no limits to the dictionary size. Default: null
+extendTimeConfiguration | Allows the increase of each object lifetime inside the dictionary by X miliseconds, up to Y miliseconds, everytime the value is retrieved. If null, the object lifetime will obey the `expectedDuration` configuration. Default: null
 
 ## Usage
 ### General example
@@ -92,5 +91,5 @@ sequenceDiagram
 `TimedTaskDictionary.GetOrAddIfNewAsync` also has an additional parameter for AfterTaskCompletion, which can be configured to remove the entry from the dictionary right after the task is completed, if that's the desired behaviour.
 
 ```csharp
-timedTaskDictionary.GetOrAddIfNewAsync(key, AsyncFunction, AfterTaskCompletionRemoveFromDictionary);
+timedTaskDictionary.GetOrAddIfNewAsync(key, AsyncFunction, AfterTaskCompletion.RemoveFromDictionary);
 ```

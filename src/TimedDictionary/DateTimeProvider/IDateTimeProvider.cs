@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace TimedDictionary.DateTimeProvider
 {
-    public interface IDateTimeProvider
+    internal interface IDateTimeProvider
     {
         DateTime Now { get; }
     }

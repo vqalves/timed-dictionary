@@ -18,7 +18,7 @@ namespace TimedDictionary.WebExample.Endpoints
 
         public TaskBundlingExample(Func<string, Task<IResult>> processKey)
         {
-            this.Dictionary = new TimedTaskDictionary<string, IResult>();
+            this.Dictionary = new TimedTaskDictionary<string, IResult>(expectedDuration: null);
             this.ProcessKey = processKey;
         }
 

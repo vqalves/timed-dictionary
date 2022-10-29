@@ -13,7 +13,7 @@ namespace TimedDictionary
 
         internal readonly T Key;
         public readonly K Value;
-        internal readonly Action<K> OnRemoved;
+        internal readonly TimedDictionary<T,K>.OnRemovedDelegate OnRemoved;
 
         private readonly TimedDictionary<T, K> ParentDictionary;
         private Task CleanUpTask;
@@ -26,7 +26,7 @@ namespace TimedDictionary
         private readonly DateTime CreationTime;
         private readonly DateTime? LimitTime;
 
-        public DictionaryEntry(T key, K value, Action<K> onRemoved, TimedDictionary<T, K> parentDictionary, int? expectedDuration, ExtendTimeConfiguration extendTimeConfiguration, IDateTimeProvider dateTimeProvider)
+        public DictionaryEntry(T key, K value, TimedDictionary<T,K>.OnRemovedDelegate onRemoved, TimedDictionary<T, K> parentDictionary, int? expectedDuration, ExtendTimeConfiguration extendTimeConfiguration, IDateTimeProvider dateTimeProvider)
         {
             this.Lock = new Object();
 

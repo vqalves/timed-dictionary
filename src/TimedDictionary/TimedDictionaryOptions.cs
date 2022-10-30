@@ -7,15 +7,15 @@ using TimedDictionary.LockStrategy;
 
 namespace TimedDictionary
 {
-    internal class TimedDictionaryOptions
+    internal class TimedDictionaryOptions<Key>
     {
         public IDateTimeProvider DateTimeProvider { get; set; }
-        public ILockStrategy LockStrategy { get; set; }
+        public ILockStrategy<Key> LockStrategy { get; set; }
 
         public TimedDictionaryOptions()
         {
             this.DateTimeProvider = DefaultDateTimeProvider.Instance;
-            this.LockStrategy = new LockObjectStrategy();
+            this.LockStrategy = new LockBucketStrategy<Key>();
         }
     }
 }

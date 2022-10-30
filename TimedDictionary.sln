@@ -15,7 +15,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{7C
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TimedDictionary.WebExample", "examples\TimedDictionary.WebExample\TimedDictionary.WebExample.csproj", "{5675EAA1-A6B8-4F42-92EC-37825BF84769}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TimedDictionary.ConsoleExample", "TimedDictionary.ConsoleExample\TimedDictionary.ConsoleExample.csproj", "{758E95FA-5236-465E-BA58-5E71EDD0CBCE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TimedDictionary.ConsoleExample", "examples\TimedDictionary.ConsoleExample\TimedDictionary.ConsoleExample.csproj", "{758E95FA-5236-465E-BA58-5E71EDD0CBCE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 namespace TimedDictionary.LockStrategy
 {
     /// <summary>Defines the strategy to enqueue concurrent requests instead of running in parallel</summary>
-    internal interface ILockStrategy
+    internal interface ILockStrategy<Key>
     {
-        void WithLock(Action action);
-        T WithLock<T>(Func<T> function);
+        void WithLock(Key key, Action action);
+        T WithLock<T>(Key key, Func<T> function);
     }
 }

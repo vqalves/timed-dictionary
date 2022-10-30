@@ -6,7 +6,7 @@ using TimedDictionary.LockStrategy;
 
 namespace TimedDictionary.Tests.Mock
 {
-    public class LockStrategy_Manual : ILockStrategy
+    public class LockStrategy_Manual<Key> : ILockStrategy<Key>
     {
         private SemaphoreSlim Semaphore;
 
@@ -20,7 +20,7 @@ namespace TimedDictionary.Tests.Mock
             Semaphore.Release();
         }
 
-        public void WithLock(Action action)
+        public void WithLock(Key key, Action action)
         {
             try
             {
@@ -33,7 +33,7 @@ namespace TimedDictionary.Tests.Mock
             }
         }
 
-        public T WithLock<T>(Func<T> function)
+        public T WithLock<T>(Key key, Func<T> function)
         {
             try
             {

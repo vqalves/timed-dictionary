@@ -30,7 +30,7 @@ namespace TimedDictionary
             
         }
 
-        internal TimedTaskDictionary(Action<TimedDictionaryOptions> changeOptions, int? expectedDuration = null, int? maximumSize = null, ExtendTimeConfiguration extendTimeConfiguration = null, TimedDictionary<Key, Task<Value>>.OnRemovedDelegate onRemoved = null)
+        internal TimedTaskDictionary(Action<TimedDictionaryOptions<Key>> changeOptions, int? expectedDuration = null, int? maximumSize = null, ExtendTimeConfiguration extendTimeConfiguration = null, TimedDictionary<Key, Task<Value>>.OnRemovedDelegate onRemoved = null)
         {
             this.TimedDictionary = new TimedDictionary<Key, Task<Value>>
             (

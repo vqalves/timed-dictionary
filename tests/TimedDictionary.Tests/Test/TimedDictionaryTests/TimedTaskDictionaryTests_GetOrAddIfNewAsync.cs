@@ -8,7 +8,7 @@ namespace TimedDictionary.Tests.Test.TimedDictionaryTests
         [Fact]
         public async void TimedTaskDictionary_GetOrAddIfNewAsync_ConcurrentDuplicatedWithAutoremoval()
         {
-            var lockStrategy = new LockStrategy_Manual();
+            var lockStrategy = new LockStrategy_Manual<int>();
             
             int key = 1;
             string value = "Test";

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace TimedDictionary.LockStrategy
 {
-    internal class LockObjectStrategy : ILockStrategy
+    internal class LockObjectStrategy<Key> : ILockStrategy<Key>
     {
         private readonly object Lock;
 
@@ -15,17 +15,17 @@ namespace TimedDictionary.LockStrategy
             this.Lock = new object();
         }
 
-        public void WithLock(Action action)
+        public void WithLock(Key key, Action action)
         {
-            lock(Lock)
+            lock (Lock)
             {
                 action.Invoke();
             }
         }
 
-        public T WithLock<T>(Func<T> function)
+        public T WithLock<T>(Key key, Func<T> function)
         {
-            lock(Lock)
+            lock (Lock)
             {
                 return function.Invoke();
             }

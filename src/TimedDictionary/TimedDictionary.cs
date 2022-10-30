@@ -14,7 +14,7 @@ namespace TimedDictionary
 
         private readonly Dictionary<Key, DictionaryEntry<Key, Value>> Dictionary;
         private readonly ExtendTimeConfiguration ExtendTimeConfiguration;
-        private readonly TimedDictionaryOptions Options;
+        private readonly TimedDictionaryOptions<Key> Options;
         private readonly int? ExpectedDuration;
         private readonly int? MaximumSize;
         private readonly OnRemovedDelegate OnRemoved;
@@ -40,9 +40,9 @@ namespace TimedDictionary
             
         }
 
-        internal TimedDictionary(Action<TimedDictionaryOptions> changeOptions, int? expectedDuration = null, int? maximumSize = null, ExtendTimeConfiguration extendTimeConfiguration = null, OnRemovedDelegate onRemoved = null)
+        internal TimedDictionary(Action<TimedDictionaryOptions<Key>> changeOptions, int? expectedDuration = null, int? maximumSize = null, ExtendTimeConfiguration extendTimeConfiguration = null, OnRemovedDelegate onRemoved = null)
         {
-            this.Options = new TimedDictionaryOptions();
+            this.Options = new TimedDictionaryOptions<Key>();
             changeOptions?.Invoke(Options);
 
             this.ExtendTimeConfiguration = extendTimeConfiguration ?? ExtendTimeConfiguration.None(Options.DateTimeProvider);
@@ -103,7 +103,7 @@ namespace TimedDictionary
 
         public bool TryAdd(Key key, Value value, OnRemovedDelegate onRemoved = null)
         {
-            return Options.LockStrategy.WithLock(() => 
+            return Options.LockStrategy.WithLock(key, () => 
             {
                 return TryAddUnsafe(key, value, out var entry, onRemoved);
             });
@@ -125,7 +125,7 @@ namespace TimedDictionary
                 if(MaximumSize.HasValue && Count >= MaximumSize.Value)
                     return notFound.Invoke();
                     
-                Options.LockStrategy.WithLock(() => 
+                Options.LockStrategy.WithLock(key, () => 
                 {
                     var value = notFound.Invoke();
                     var wasCreated = TryAddUnsafe(key, value, out entry, onRemoved);
@@ -167,7 +167,7 @@ namespace TimedDictionary
 
         public bool Remove(Key key)
         {
-            return Options.LockStrategy.WithLock(() => 
+            return Options.LockStrategy.WithLock(key, () => 
             {
                 return RemoveUnsafe(key);
             });
@@ -175,7 +175,7 @@ namespace TimedDictionary
 
         internal void Remove(DictionaryEntry<Key, Value> removedEntry)
         {
-            Options.LockStrategy.WithLock(() => 
+            Options.LockStrategy.WithLock(removedEntry.Key, () => 
             {
                 RemoveUnsafe(removedEntry);
             });

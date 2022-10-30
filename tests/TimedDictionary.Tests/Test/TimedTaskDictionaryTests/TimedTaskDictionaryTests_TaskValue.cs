@@ -1,7 +1,7 @@
 using TimedDictionary.Tests.Mock;
 using Xunit;
 
-namespace TimedDictionary.Tests.Test.TimedDictionaryTests
+namespace TimedDictionary.Tests.Test.TimedTaskDictionaryTests
 {
     public class TimedTaskDictionaryTests_TaskValue
     {

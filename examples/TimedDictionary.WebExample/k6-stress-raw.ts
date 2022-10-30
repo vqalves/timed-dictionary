@@ -3,7 +3,7 @@
 import http from 'k6/http';
 
 export default function () {
-    var value = Math.ceil(Math.random() * 1);
+    var value = Math.ceil(Math.random() * 50);
 
     // Activate to test bundling
     http.get(`http://localhost:5000/stress/bundle/${value}`);

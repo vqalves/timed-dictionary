@@ -1,21 +1,23 @@
 using TimedDictionary.Tests.Mock;
 using Xunit;
 
-namespace TimedDictionary.Tests.Test.TimedDictionaryTests
+namespace TimedDictionary.Tests.Test.TimedTaskDictionaryTests
 {
     public class TimedTaskDictionaryTests_GetOrAddIfNewAsync
     {
         [Fact]
         public async void TimedTaskDictionary_GetOrAddIfNewAsync_ConcurrentDuplicatedWithAutoremoval()
         {
-            var lockStrategy = new LockStrategy_Manual<int>();
+            var lockStrategy = new LockStrategy_Manual();
+            var lockFactory = new LockStrategyFactory_Manual(lockStrategy);
+            
             
             int key = 1;
             string value = "Test";
 
             TimedTaskDictionary<int, string> dictionary = new TimedTaskDictionary<int, string>(expectedDuration: null, changeOptions: (options) => 
             { 
-                options.LockStrategy = lockStrategy;
+                options.LockStrategyFactory = lockFactory;
             });
 
             var createValue = async () => 

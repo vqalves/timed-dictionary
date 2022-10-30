@@ -63,13 +63,14 @@ namespace TimedDictionary.Tests.Test
             var extendConfig = new ExtendTimeConfiguration(duration: durationExtension);
             
             var config = new EntryLifetime(expectedDuration: duration, provider, extendConfig);
-            var totalExtension = config.ExtendCurrentLimitTime();
+            var nextSchedulerTime = config.ExtendCurrentLimitTime();
 
-            Assert.Null(totalExtension);
+            var nextExecutionInMs = nextSchedulerTime - provider.CurrentMilliseconds;
+            Assert.Equal(duration, nextExecutionInMs);
         }
 
         [Fact]
-        public void EntryLifetime_ExtendCurrentLimitTime_PartialExtensionBecauseCurrentDuration()
+        public void EntryLifetime_ExtendCurrentLimitTime_ExtensionOverridesDurationBecauseIsBigger()
         {
             var duration = 500;
             var durationExtension = 1500;
@@ -78,9 +79,10 @@ namespace TimedDictionary.Tests.Test
             var extendConfig = new ExtendTimeConfiguration(duration: durationExtension);
             
             var config = new EntryLifetime(expectedDuration: duration, provider, extendConfig);
-            var totalExtension = config.ExtendCurrentLimitTime();
+            var nextSchedulerTime = config.ExtendCurrentLimitTime();
 
-            Assert.Equal(1000, totalExtension);
+            var nextExecutionInMs = nextSchedulerTime - provider.CurrentMilliseconds;
+            Assert.Equal(durationExtension, nextExecutionInMs);
         }
 
         [Fact]
@@ -94,9 +96,10 @@ namespace TimedDictionary.Tests.Test
             var extendConfig = new ExtendTimeConfiguration(duration: durationExtension, limit: extensionLimit);
             
             var config = new EntryLifetime(expectedDuration: duration, provider, extendConfig);
-            var totalExtension = config.ExtendCurrentLimitTime();
+            var nextSchedulerTime = config.ExtendCurrentLimitTime();
 
-            Assert.Equal(extensionLimit, totalExtension);
+            var nextExecutionInMs = nextSchedulerTime - provider.CurrentMilliseconds;
+            Assert.Equal(extensionLimit, nextExecutionInMs);
         }
 
         [Fact]
@@ -109,8 +112,9 @@ namespace TimedDictionary.Tests.Test
             var extendConfig = new ExtendTimeConfiguration(duration: durationExtension);
             
             var config = new EntryLifetime(expectedDuration: duration, provider, extendConfig);
-            var totalExtension = config.ExtendCurrentLimitTime();
+            var nextSchedulerTime = config.ExtendCurrentLimitTime();
 
+            var totalExtension = nextSchedulerTime - provider.CurrentMilliseconds;
             Assert.Equal(durationExtension, totalExtension);
         }
     }

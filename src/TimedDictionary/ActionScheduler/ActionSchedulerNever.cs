@@ -12,7 +12,12 @@ namespace TimedDictionary.ActionScheduler
 
         private ActionSchedulerNever() { }
 
-        public void RescheduleTo(int duration)
+        public void RescheduleTo(long newNextExecution)
+        {
+            // Do nothing
+        }
+
+        public void StartSchedule()
         {
             // Do nothing
         }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using TimedDictionary.DateTimeProvider;
 
 namespace TimedDictionary.ActionScheduler
 {
@@ -10,12 +11,12 @@ namespace TimedDictionary.ActionScheduler
     {
         private ActionSchedulerFactory() { }
         
-        public static IActionScheduler Create(Action action, int? msToExecute)
+        public static IActionScheduler CreateUnstarted(IDateTimeProvider dateTimeProvider, Action action, int? msToExecute)
         {
             if(msToExecute == null)
                 return ActionSchedulerNever.Instance;
 
-            return new ActionSchedulerByTask(action, msToExecute.Value);
+            return new ActionSchedulerByTask(dateTimeProvider, action, msToExecute.Value);
         }
     }
 }

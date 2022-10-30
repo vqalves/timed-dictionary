@@ -7,6 +7,7 @@ namespace TimedDictionary.ActionScheduler
 {
     internal interface IActionScheduler
     {
-        void RescheduleTo(int milliseconds);
+        void RescheduleTo(long newNextExecution);
+        void StartSchedule();
     }
 }

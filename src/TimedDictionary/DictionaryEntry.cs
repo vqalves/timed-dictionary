@@ -4,41 +4,39 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using TimedDictionary.ActionScheduler;
+using TimedDictionary.DateTimeProvider;
+using TimedDictionary.ShardedDictionaryStructure;
 
 namespace TimedDictionary
 {
     internal class DictionaryEntry<T, K>
     {
         private readonly object Lock;
+
         internal readonly T Key;
         public readonly K Value;
-        internal readonly TimedDictionary<T,K>.OnRemovedDelegate OnRemoved;
 
-        private readonly TimedDictionary<T, K> ParentDictionary;
+        private readonly ShardedDictionary<T, K> ParentDictionary;
+        internal readonly TimedDictionary<T,K>.OnRemovedDelegate OnRemovedCallback;
         private bool WasRemoved;
 
-        private IActionScheduler TimeoutScheduler;
+        internal readonly IActionScheduler TimeoutScheduler;
         private readonly EntryLifetime Lifetime;
 
-        public DictionaryEntry(T key, K value, TimedDictionary<T,K>.OnRemovedDelegate onRemoved, TimedDictionary<T, K> parentDictionary, EntryLifetime lifetime)
+        public DictionaryEntry(T key, K value, TimedDictionary<T,K>.OnRemovedDelegate onRemovedCallback, ShardedDictionary<T, K> parentDictionary, EntryLifetime lifetime, IDateTimeProvider dateTimeProvider)
         {
             this.Lock = new object();
 
             this.Key = key;
             this.Value = value;
-            this.OnRemoved = onRemoved;
+            this.OnRemovedCallback = onRemovedCallback;
 
             this.ParentDictionary = parentDictionary;
             this.WasRemoved = false;
 
             this.Lifetime = lifetime;
 
-            this.TimeoutScheduler = null;
-        }
-
-        internal void AttachTimeoutScheduler(IActionScheduler timeoutScheduler)
-        {
-            this.TimeoutScheduler = timeoutScheduler;
+            this.TimeoutScheduler = ActionSchedulerFactory.CreateUnstarted(dateTimeProvider, RemoveItselfFromDictionary, (int?)lifetime.MillisecondsUntilLimit());
         }
 
         public void RefreshCleanUpDuration()
@@ -61,9 +59,9 @@ namespace TimedDictionary
             }
         }
 
-        public int CurrentLifetimeInMilliseconds()
+        public long CurrentLifetimeInMilliseconds()
         {
-            return Lifetime.CurrentLifetimeInMs();
+            return Lifetime.CurrentLifetimeInMilliseconds();
         }
     }
 }

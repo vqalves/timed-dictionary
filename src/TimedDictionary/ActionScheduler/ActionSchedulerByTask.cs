@@ -3,67 +3,70 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using TimedDictionary.DateTimeProvider;
 
 namespace TimedDictionary.ActionScheduler
 {
     internal class ActionSchedulerByTask : IActionScheduler
     {
         private readonly object Lock;
+        private readonly IDateTimeProvider DateTimeProvider;
         private readonly Action Action;
 
         private Task ActionTask;
-        private CancellationTokenSource LastCancellationTokenSource;
+        private long NextExecutionScheduled;
         
         ///<summary>Schedule a task to run after X milliseconds</summary>
-        public ActionSchedulerByTask(Action action, int millisecondsToExecute)
+        public ActionSchedulerByTask(IDateTimeProvider dateTimeProvider, Action action, int millisecondsToExecute)
         {
-            this.Lock = new Object();
+            this.Lock = new object();
+            this.DateTimeProvider = dateTimeProvider;
             this.Action = action;
-
-            this.RescheduleTo(millisecondsToExecute);
+            this.NextExecutionScheduled = dateTimeProvider.CurrentMilliseconds + millisecondsToExecute;
         }
 
-        private bool TryExecuteUnsafe(CancellationToken? token)
+        public void StartSchedule()
         {
-            if(token?.IsCancellationRequested == true)
-                return false;
-            
-            Action.Invoke();
-            return true;
+            TryExecuteUnsafe();
         }
 
-        private void Execute(CancellationToken? token)
+        private void TryExecute()
         {
             lock(Lock)
             {
-                TryExecuteUnsafe(token);
+                TryExecuteUnsafe();
             }
         }
 
-        public void RescheduleTo(int duration)
+        private void TryExecuteUnsafe()
         {
-            lock(Lock)
+            var now = DateTimeProvider.CurrentMilliseconds;
+
+            if (now >= NextExecutionScheduled)
             {
-                // Non-significative durations can execute the task immediately
-                if(duration <= 0)
-                {
-                    TryExecuteUnsafe(LastCancellationTokenSource?.Token);
-                    
-                    LastCancellationTokenSource?.Cancel();
-                    return;
-                }
-
-                // Cancel the last token and create a new task
-                LastCancellationTokenSource?.Cancel();
-                LastCancellationTokenSource = new CancellationTokenSource();
-                var token = LastCancellationTokenSource.Token;
-
-                ActionTask = Task.Run(async () => 
-                {
-                    await Task.Delay(duration, token);
-                    Execute(token);
-                }, token);
+                Action.Invoke();
             }
+            else
+            {
+                var delay = NextExecutionScheduled - now;
+                var delayInt = delay > int.MaxValue ? int.MaxValue : (int)delay;
+
+                ActionTask = Task.Run(async () =>
+                {
+                    await Task.Delay(delayInt);
+                    TryExecute();
+                });
+            }
+        }
+
+        /// <summary>Forward-only rescheduler. If the new execution time is later than the current, the execution is rescheduled, otherwise it's ignored</summary>
+        /// <param name="newNextExecution">New next execution, based on the IDateTimeProvider milliseconds</param>
+        public void RescheduleTo(long newNextExecution)
+        {
+            if (newNextExecution > NextExecutionScheduled)
+                lock (Lock)
+                    if (newNextExecution > NextExecutionScheduled)
+                        NextExecutionScheduled = newNextExecution;
         }
     }
 }

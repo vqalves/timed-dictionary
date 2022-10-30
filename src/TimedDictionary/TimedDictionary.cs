@@ -5,6 +5,7 @@ using System.Linq;
 using TimedDictionary.ActionScheduler;
 using TimedDictionary.DateTimeProvider;
 using TimedDictionary.LockStrategy;
+using TimedDictionary.ShardedDictionaryStructure;
 
 namespace TimedDictionary
 {
@@ -12,15 +13,15 @@ namespace TimedDictionary
     {
         public delegate void OnRemovedDelegate(Value removedValue);
 
-        private readonly Dictionary<Key, DictionaryEntry<Key, Value>> Dictionary;
+        private readonly ShardedDictionaries<Key, Value> Shards;
         private readonly ExtendTimeConfiguration ExtendTimeConfiguration;
-        private readonly TimedDictionaryOptions<Key> Options;
+        private readonly TimedDictionaryOptions Options;
         private readonly int? ExpectedDuration;
         private readonly int? MaximumSize;
         private readonly OnRemovedDelegate OnRemoved;
 
         /// <summary>Amount of items currently in the dictionary</summary>
-        public int Count => Dictionary.Count;
+        public int Count => Shards.EntryCount;
 
         /// <summary>Time-based self-cleaning dictionary structure. The entries are automatically removed from the structure after the specified time</summary>
         /// <param name="expectedDuration">How many milliseconds each value should be kept in the dictionary. If null, the structure will keep all records until they are manually removed.</param>
@@ -40,35 +41,26 @@ namespace TimedDictionary
             
         }
 
-        internal TimedDictionary(Action<TimedDictionaryOptions<Key>> changeOptions, int? expectedDuration = null, int? maximumSize = null, ExtendTimeConfiguration extendTimeConfiguration = null, OnRemovedDelegate onRemoved = null)
+        internal TimedDictionary(Action<TimedDictionaryOptions> changeOptions, int? expectedDuration = null, int? maximumSize = null, ExtendTimeConfiguration extendTimeConfiguration = null, OnRemovedDelegate onRemoved = null)
         {
-            this.Options = new TimedDictionaryOptions<Key>();
+            this.Options = new TimedDictionaryOptions();
             changeOptions?.Invoke(Options);
 
             this.ExtendTimeConfiguration = extendTimeConfiguration ?? ExtendTimeConfiguration.None(Options.DateTimeProvider);
 
-            this.Dictionary = new Dictionary<Key, DictionaryEntry<Key, Value>>();
+            this.Shards = new ShardedDictionaries<Key, Value>(Options.LockStrategyFactory);
             this.ExpectedDuration = expectedDuration;
             this.MaximumSize = maximumSize;
             this.OnRemoved = onRemoved;
-        }
-
-        private bool TryGetValue(Key key, out DictionaryEntry<Key, Value> entry)
-        {
-            if(Dictionary.TryGetValue(key, out entry))
-            {
-                entry.RefreshCleanUpDuration();
-                return true;
-            }
-
-            return false;
         }
 
         /// <summary>Get the current value associated with the key</summary>
         /// <param name="key">Key which the value was stored</param>
         public Value GetValueOrDefault(Key key)
         {
-            if(TryGetValue(key, out var entry))
+            var shard = Shards.GetShard(key);
+
+            if(shard.TryGetValue(key, out var entry))
                 return entry.Value;
 
             return default(Value);
@@ -76,24 +68,22 @@ namespace TimedDictionary
 
         public bool ContainsKey(Key key) 
         {
-            return Dictionary.ContainsKey(key);
+            return Shards.GetShard(key).ContainsKey(key);
         }
 
-        private bool TryAddUnsafe(Key key, Value value, out DictionaryEntry<Key, Value> currentEntry, OnRemovedDelegate onRemoved = null)
+        private bool TryAddUnsafe(ShardedDictionary<Key, Value> shard, Key key, Value value, out DictionaryEntry<Key, Value> currentEntry, OnRemovedDelegate onRemoved = null)
         {
-            if(!Dictionary.TryGetValue(key, out currentEntry))
+            if(!shard.TryGetValue(key, out currentEntry))
             {
                 // If onRemoved is not specified by parameter, use the instance configuration
                 onRemoved = onRemoved ?? this.OnRemoved;
 
                 var lifetime = new EntryLifetime(ExpectedDuration, Options.DateTimeProvider, ExtendTimeConfiguration);
 
-                currentEntry = new DictionaryEntry<Key, Value>(key, value, onRemoved, this, lifetime);
-                Dictionary.Add(key, currentEntry);
+                currentEntry = new DictionaryEntry<Key, Value>(key, value, onRemoved, shard, lifetime, Options.DateTimeProvider);
+                shard.Dictionary.Add(key, currentEntry);
 
-                // ActionScheduler can execute immediately, so add the entry to dictionary before instanciating the scheduler
-                var timeoutScheduler = ActionSchedulerFactory.Create(currentEntry.RemoveItselfFromDictionary, ExpectedDuration);
-                currentEntry.AttachTimeoutScheduler(timeoutScheduler);
+                currentEntry.TimeoutScheduler.StartSchedule();
 
                 return true;
             }
@@ -103,9 +93,11 @@ namespace TimedDictionary
 
         public bool TryAdd(Key key, Value value, OnRemovedDelegate onRemoved = null)
         {
-            return Options.LockStrategy.WithLock(key, () => 
+            var shard = Shards.GetShard(key);
+
+            return shard.LockStrategy.WithLock(() => 
             {
-                return TryAddUnsafe(key, value, out var entry, onRemoved);
+                return TryAddUnsafe(shard, key, value, out var entry, onRemoved);
             });
         }
 
@@ -120,15 +112,17 @@ namespace TimedDictionary
 
         internal Value GetOrAddIfNew(Key key, Func<Value> notFound, Action<DictionaryEntry<Key, Value>> onNewEntry, OnRemovedDelegate onRemoved)
         {
-            if(!TryGetValue(key, out var entry))
+            var shard = Shards.GetShard(key);
+
+            if(!shard.TryGetValue(key, out var entry))
             {
                 if(MaximumSize.HasValue && Count >= MaximumSize.Value)
                     return notFound.Invoke();
                     
-                Options.LockStrategy.WithLock(key, () => 
+                shard.LockStrategy.WithLock(() => 
                 {
                     var value = notFound.Invoke();
-                    var wasCreated = TryAddUnsafe(key, value, out entry, onRemoved);
+                    var wasCreated = TryAddUnsafe(shard, key, value, out entry, onRemoved);
 
                     if(wasCreated)
                         onNewEntry?.Invoke(entry);
@@ -138,46 +132,13 @@ namespace TimedDictionary
             return entry.Value;
         }
 
-        private bool RemoveUnsafe(DictionaryEntry<Key, Value> removedEntry)
-        {
-            if(Dictionary.TryGetValue(removedEntry.Key, out var entry))
-            {
-                if(entry == removedEntry)
-                {
-                    Dictionary.Remove(removedEntry.Key);
-                    removedEntry.OnRemoved?.Invoke(removedEntry.Value);
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private bool RemoveUnsafe(Key key)
-        {
-            if(Dictionary.TryGetValue(key, out var entry))
-            {
-                Dictionary.Remove(entry.Key);
-                entry.OnRemoved?.Invoke(entry.Value);
-                return true;
-            }
-
-            return false;
-        }
-
         public bool Remove(Key key)
         {
-            return Options.LockStrategy.WithLock(key, () => 
-            {
-                return RemoveUnsafe(key);
-            });
-        }
+            var shard = Shards.GetShard(key);
 
-        internal void Remove(DictionaryEntry<Key, Value> removedEntry)
-        {
-            Options.LockStrategy.WithLock(removedEntry.Key, () => 
+            return shard.LockStrategy.WithLock(() => 
             {
-                RemoveUnsafe(removedEntry);
+                return shard.RemoveUnsafe(key);
             });
         }
     }

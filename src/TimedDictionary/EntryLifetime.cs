@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using TimedDictionary.DateTimeProvider;
@@ -10,37 +11,37 @@ namespace TimedDictionary
     {
         private readonly IDateTimeProvider DateTimeProvider;
         private readonly ExtendTimeConfiguration ExtendTimeConfiguration;
-        private readonly DateTime CreationTime;
+
+        private readonly long CreationTime;
+        public long? CurrentLimitTime { get; private set; }
 
         /// <summary>Expected time + Extension limit</summary>
-        private readonly DateTime? MaximumAcceptableTime;
+        private readonly long? MaximumAcceptableTime;
 
-        public DateTime? CurrentLimitTime { get; private set; }
-        
         public EntryLifetime(int? expectedDuration, IDateTimeProvider dateTimeProvider, ExtendTimeConfiguration extendTimeConfiguration)
         {
             this.DateTimeProvider = dateTimeProvider;
             this.ExtendTimeConfiguration = extendTimeConfiguration;
 
-            this.CreationTime = DateTimeProvider.Now;
+            this.CreationTime = dateTimeProvider.CurrentMilliseconds;
 
-            if(expectedDuration.HasValue)
+            if (expectedDuration.HasValue)
             {
-                this.CurrentLimitTime = CreationTime.AddMilliseconds(expectedDuration.Value);
+                this.CurrentLimitTime = CreationTime + expectedDuration.Value;
                 
                 if(extendTimeConfiguration.Limit.HasValue)
-                    this.MaximumAcceptableTime = CurrentLimitTime.Value.AddMilliseconds(extendTimeConfiguration.Limit.Value);
+                    this.MaximumAcceptableTime = CurrentLimitTime.Value + extendTimeConfiguration.Limit.Value;
             }
         }
 
         /// <summary>Check how many millisecods must pass to reach the limit</summary>
         /// <returns>If it's reached, returns 0. If there's not limit, returns null</returns>
-        public int? MillisecondsUntilLimit()
+        public long? MillisecondsUntilLimit()
         {
-            int? result = null;
+            long? result = null;
 
             if(CurrentLimitTime.HasValue)
-                result = (int)CurrentLimitTime.Value.Subtract(DateTimeProvider.Now).TotalMilliseconds;
+                result = CurrentLimitTime.Value - DateTimeProvider.CurrentMilliseconds;
 
             if(result.HasValue && result.Value < 0)
                 return 0;
@@ -48,9 +49,9 @@ namespace TimedDictionary
             return result;
         }
 
-        /// <summary>Extend the current time limit for the entry</summary>
-        /// <returns>The amount of milliseconds the time was extended by. If the time was not extended, returns null</returns>
-        public int? ExtendCurrentLimitTime()
+        /// <summary>Try to extend the current time limit for the entry</summary>
+        /// <returns>What's the new current time limit for the entry. If there's not limit, returns null</returns>
+        public long? ExtendCurrentLimitTime()
         {
             // Does not have a default limit
             if(!CurrentLimitTime.HasValue)
@@ -58,43 +59,37 @@ namespace TimedDictionary
             
             // Does not contain a extend time configuration
             if(!ExtendTimeConfiguration.Duration.HasValue)
-                return null;
+                return CurrentLimitTime;
 
-            // Current limit cannot be extended more because it capped with the maximum acceptable
-            if(MaximumAcceptableTime.HasValue && MaximumAcceptableTime.Value <= CurrentLimitTime.Value)
-                return null;
-
-            var now = DateTimeProvider.Now;
+            var now = DateTimeProvider.CurrentMilliseconds;
 
             // Present time already exceeds the maximum acceptable, so it's not possible to extend the current limit
-            if(MaximumAcceptableTime.HasValue && now > MaximumAcceptableTime.Value)
-                return null;
+            if (MaximumAcceptableTime.HasValue && now > MaximumAcceptableTime.Value)
+            {
+                if(CurrentLimitTime != MaximumAcceptableTime)
+                    CurrentLimitTime = MaximumAcceptableTime;
 
-            var newTime = now.AddMilliseconds(ExtendTimeConfiguration.Duration.Value);
-            
-            // Extension fails because the current limit is already bigger than now + extension
-            if(CurrentLimitTime.Value > newTime)
-                return null;
+                return MaximumAcceptableTime;
+            }
 
-            int extendedTime;
+            var newTime = now + ExtendTimeConfiguration.Duration.Value;
 
-            // Normal extension cannot exceed the maximum acceptable
+            // Don't reschedule if the current time limit is already bigger than the new calculated time
+            if(CurrentLimitTime > newTime)
+                return CurrentLimitTime;
+
+            // Make sure the new time limit does not exceed the maximum acceptable time
             if(MaximumAcceptableTime.HasValue && newTime > MaximumAcceptableTime.Value)
-            {
                 CurrentLimitTime = MaximumAcceptableTime;
-                extendedTime = (int)MaximumAcceptableTime.Value.Subtract(now).TotalMilliseconds;
-            }
             else
-            {
-                extendedTime = (int)newTime.Subtract(CurrentLimitTime.Value).TotalMilliseconds;
-            }
+                CurrentLimitTime = newTime;
 
-            return extendedTime;
+            return CurrentLimitTime;
         }
 
-        public int CurrentLifetimeInMs()
+        public long CurrentLifetimeInMilliseconds()
         {
-            return (int)DateTimeProvider.Now.Subtract(CreationTime).TotalMilliseconds;
+            return DateTimeProvider.CurrentMilliseconds - CreationTime;
         }
     }
 }

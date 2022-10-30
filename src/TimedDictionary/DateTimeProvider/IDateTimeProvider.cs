@@ -8,5 +8,6 @@ namespace TimedDictionary.DateTimeProvider
     internal interface IDateTimeProvider
     {
         DateTime Now { get; }
+        long CurrentMilliseconds { get; }
     }
 }

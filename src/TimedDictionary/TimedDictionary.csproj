@@ -6,7 +6,7 @@
 
   <PropertyGroup>
     <PackageId>TimedDictionary</PackageId>
-    <Version>1.0.1</Version>
+    <Version>1.0.3</Version>
     <Authors>Vinicius Quinafelex Alves</Authors>
     <Company>QRV Consultoria</Company>
     <Title>TimedDictionary</Title>

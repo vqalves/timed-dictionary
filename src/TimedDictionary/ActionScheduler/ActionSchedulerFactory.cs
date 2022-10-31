@@ -1,9 +1,5 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using TimedDictionary.DateTimeProvider;
+using TimedDictionary.TimestampProvider;
 
 namespace TimedDictionary.ActionScheduler
 {
@@ -11,12 +7,12 @@ namespace TimedDictionary.ActionScheduler
     {
         private ActionSchedulerFactory() { }
         
-        public static IActionScheduler CreateUnstarted(IDateTimeProvider dateTimeProvider, Action action, int? msToExecute)
+        public static IActionScheduler CreateUnstarted(ITimestampProvider timestampProvider, Action action, int? msToExecute)
         {
             if(msToExecute == null)
                 return ActionSchedulerNever.Instance;
 
-            return new ActionSchedulerByTask(dateTimeProvider, action, msToExecute.Value);
+            return new ActionSchedulerByTask(timestampProvider, action, msToExecute.Value);
         }
     }
 }

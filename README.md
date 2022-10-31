@@ -11,6 +11,7 @@ Parameter | Description
 expectedDuration | How many milliseconds each value should be kept in the dictionary. If null, the structure will keep all records until they are manually removed. Default: null
 maximumSize | Maximum amount of keys allowed at a time. When the limit is reached, no new keys will be added and new keys will always execute the evaluation function. If null, there will be no limits to the dictionary size. Default: null
 extendTimeConfiguration | Allows the increase of each object lifetime inside the dictionary by X milliseconds, up to Y milliseconds, everytime the value is retrieved. If null, the object lifetime will obey the `expectedDuration` configuration. Default: null
+onRemoved | Callback called whenever a value is removed from the dictionary, either by timeout or manually. Called only once per value. Default: null
 
 ## Usage
 ### General example
@@ -29,7 +30,8 @@ var dictionary = new TimedDictionary<Key, Value>(expectedDuration: 5000);
 var retrievedValue = dictionary.Remove(key);
 ```
 
-### Add listener to be notified when the value is removed
+### Create onRemoved listener per-value
+This listener overrides the onRemoved provided on the dictionary constructor
 ```csharp
 dictionary.GetOrAddIfNew(key, () => GenerateValue(), onRemoved: (removedValue) => { /* Execute */ });
 ```
@@ -64,9 +66,11 @@ When multiple users request the same thing, instead of starting one task for eac
 It is recommended to use TimedTaskDictionary instead of TimedDictionary, because it requires less boilerplate code to wrap around tasks.
 
 ```csharp
-public async Task<IResult> GetAsync(
-    [FromService]TimedTaskDictionary<Key, Value> singletonDictionary,
-    [FromRoute]Key id)
+public async Task<IResult> GetAsync
+(
+    [FromService] TimedTaskDictionary<Key, Value> singletonDictionary,
+    [FromRoute] Key id
+)
 {
     var task = singletonDictionary.GetOrAddIfNewAsync(key, () => RetrieveValueAsync(id));
     var result = await task;
@@ -88,7 +92,7 @@ sequenceDiagram
     TimedDictionary->>TimedDictionary: Uncaching task after X milliseconds
 ```
 
-`TimedTaskDictionary.GetOrAddIfNewAsync` also has an additional parameter for AfterTaskCompletion, which can be configured to remove the entry from the dictionary right after the task is completed, if that's the desired behaviour.
+`TimedTaskDictionary.GetOrAddIfNewAsync` also has an additional parameter for AfterTaskCompletion, which can be configured to remove the entry from the dictionary right after the task is completed.
 
 ```csharp
 timedTaskDictionary.GetOrAddIfNewAsync(key, AsyncFunction, AfterTaskCompletion.RemoveFromDictionary);

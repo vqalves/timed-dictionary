@@ -1,29 +1,25 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using TimedDictionary.ActionScheduler;
-using TimedDictionary.DateTimeProvider;
 using TimedDictionary.ShardedDictionaryStructure;
+using TimedDictionary.TimestampProvider;
 
 namespace TimedDictionary
 {
-    internal class DictionaryEntry<T, K>
+    internal class DictionaryEntry<TKey, TValue>
     {
         private readonly object Lock;
 
-        internal readonly T Key;
-        public readonly K Value;
+        internal readonly TKey Key;
+        public readonly TValue Value;
 
-        private readonly ShardedDictionary<T, K> ParentDictionary;
-        internal readonly TimedDictionary<T,K>.OnRemovedDelegate OnRemovedCallback;
+        private readonly ShardedDictionary<TKey, TValue> ParentDictionary;
+        internal readonly OnValueRemovedDelegate<TValue> OnRemovedCallback;
         private bool WasRemoved;
 
         internal readonly IActionScheduler TimeoutScheduler;
         private readonly EntryLifetime Lifetime;
 
-        public DictionaryEntry(T key, K value, TimedDictionary<T,K>.OnRemovedDelegate onRemovedCallback, ShardedDictionary<T, K> parentDictionary, EntryLifetime lifetime, IDateTimeProvider dateTimeProvider)
+        public DictionaryEntry(TKey key, TValue value, OnValueRemovedDelegate<TValue> onRemovedCallback, ShardedDictionary<TKey, TValue> parentDictionary, EntryLifetime lifetime, ITimestampProvider timestampProvider)
         {
             this.Lock = new object();
 
@@ -36,7 +32,7 @@ namespace TimedDictionary
 
             this.Lifetime = lifetime;
 
-            this.TimeoutScheduler = ActionSchedulerFactory.CreateUnstarted(dateTimeProvider, RemoveItselfFromDictionary, (int?)lifetime.MillisecondsUntilLimit());
+            this.TimeoutScheduler = ActionSchedulerFactory.CreateUnstarted(timestampProvider, RemoveItselfFromDictionary, (int?)lifetime.MillisecondsUntilLimit());
         }
 
         public void RefreshCleanUpDuration()
@@ -55,6 +51,10 @@ namespace TimedDictionary
                 {
                     WasRemoved = true;
                     ParentDictionary.Remove(this);
+                }
+                else
+                {
+                    Console.WriteLine("Double hit");
                 }
             }
         }

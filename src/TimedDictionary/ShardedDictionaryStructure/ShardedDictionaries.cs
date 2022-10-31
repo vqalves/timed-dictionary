@@ -1,8 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
-using TimedDictionary.LockStrategy;
 
 namespace TimedDictionary.ShardedDictionaryStructure
 {
@@ -11,19 +8,31 @@ namespace TimedDictionary.ShardedDictionaryStructure
         private readonly ShardedDictionary<Key, Value>[] Shards;
         private readonly int ShardCount;
 
+        internal readonly ExtendTimeConfiguration ExtendTimeConfiguration;
+        internal readonly TimedDictionaryOptions Options;
+        internal readonly int? ExpectedDuration;
+        internal readonly int? MaximumSize;
+
+        internal readonly OnValueRemovedDelegate<Value> OnRemoved;
+
         public int EntryCount => Shards.Sum(x => x.Dictionary.Count);
 
-        public ShardedDictionaries(ILockStrategyFactory lockStrategyFactory)
+        public ShardedDictionaries(ExtendTimeConfiguration extendTimeConfiguration, Action<TimedDictionaryOptions> changeOptions, int? expectedDuration, int? maximumSize, OnValueRemovedDelegate<Value> onRemoved)
         {
-            this.ShardCount = 255;
+            this.Options = new TimedDictionaryOptions();
+            changeOptions?.Invoke(Options);
 
+            this.ExtendTimeConfiguration = extendTimeConfiguration ?? ExtendTimeConfiguration.None;
+
+            this.ExpectedDuration = expectedDuration;
+            this.MaximumSize = maximumSize;
+            this.OnRemoved = onRemoved;
+
+            this.ShardCount = 255;
             this.Shards = new ShardedDictionary<Key, Value>[ShardCount + 1];
             for (var i = 0; i < Shards.Length; i++)
-            {
-                var lockStrategy = lockStrategyFactory.CreateNew();
-                Shards[i] = new ShardedDictionary<Key, Value>(lockStrategy);
-            }
-
+                Shards[i] = new ShardedDictionary<Key, Value>(i, this);
+            
             /*
             this.Comparer = null;
             if (!typeof(Key).IsValueType)

@@ -1,20 +1,16 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using TimedDictionary.DateTimeProvider;
 using TimedDictionary.LockStrategy;
+using TimedDictionary.TimestampProvider;
 
 namespace TimedDictionary
 {
     internal class TimedDictionaryOptions
     {
-        public IDateTimeProvider DateTimeProvider { get; set; }
+        public ITimestampProvider TimestampProvider { get; set; }
         public ILockStrategyFactory LockStrategyFactory { get; set; }
 
         public TimedDictionaryOptions()
         {
-            this.DateTimeProvider = DefaultDateTimeProvider.Instance;
+            this.TimestampProvider = TimestampDefaultProvider.Instance;
             this.LockStrategyFactory = new LockObjectStrategyFactory();
         }
     }

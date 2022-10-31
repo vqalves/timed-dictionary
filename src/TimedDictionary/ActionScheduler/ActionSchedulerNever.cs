@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using TimedDictionary.TimestampProvider;
 
 namespace TimedDictionary.ActionScheduler
 {
@@ -12,7 +8,7 @@ namespace TimedDictionary.ActionScheduler
 
         private ActionSchedulerNever() { }
 
-        public void RescheduleTo(long newNextExecution)
+        public void RescheduleTo(Timestamp newNextExecution)
         {
             // Do nothing
         }

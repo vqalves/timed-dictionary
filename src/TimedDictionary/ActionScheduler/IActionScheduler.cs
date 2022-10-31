@@ -1,13 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using TimedDictionary.TimestampProvider;
 
 namespace TimedDictionary.ActionScheduler
 {
     internal interface IActionScheduler
     {
-        void RescheduleTo(long newNextExecution);
+        void RescheduleTo(Timestamp newNextExecution);
         void StartSchedule();
     }
 }
